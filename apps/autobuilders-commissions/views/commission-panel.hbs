@@ -130,29 +130,36 @@
     <script>
       let sdk; let dealId; let selectedUserId; let commissionConfig = [];
       function showDebug(message) { const debugEl =
-      document.getElementById('debug'); debugEl.style.display = 'block';
-      debugEl.innerHTML += message + '<br>'; console.log('[DEBUG]', message); }
-      async function init() { try { showDebug('Starting initialization...'); if
-      (!window.AppExtensionsSDK) { showError('Pipedrive SDK not loaded');
-      return; } showDebug('SDK found, initializing...'); sdk = await
-      window.AppExtensionsSDK.initialize(); showDebug('SDK initialized
-      successfully'); const context = await sdk.getContext();
+      document.getElementById('debug'); if (debugEl) { debugEl.style.display =
+      'block'; debugEl.innerHTML += message + '<br>'; } console.log('[DEBUG]',
+      message); } async function init() { try { showDebug('Starting
+      initialization...'); // Wait for SDK to load if (typeof
+      window.AppExtensionsSDK === 'undefined') { showDebug('Waiting for SDK to
+      load...'); await new Promise((resolve) => { const checkSDK =
+      setInterval(() => { if (typeof window.AppExtensionsSDK !== 'undefined') {
+      clearInterval(checkSDK); resolve(); } }, 100); // Timeout after 5 seconds
+      setTimeout(() => { clearInterval(checkSDK); showError('Timeout waiting for
+      Pipedrive SDK to load'); }, 5000); }); } if (typeof
+      window.AppExtensionsSDK === 'undefined') { showError('Pipedrive SDK not
+      loaded after timeout'); return; } showDebug('SDK found, initializing...');
+      sdk = await window.AppExtensionsSDK.initialize(); showDebug('SDK
+      initialized successfully'); const context = await sdk.getContext();
       showDebug('Context: ' + JSON.stringify(context)); dealId = context.dealId;
       selectedUserId = context.userId; showDebug('Deal ID: ' + dealId + ', User
       ID: ' + selectedUserId); if (!dealId) { showError('No deal ID found in
       context'); return; } await loadCommissionData(); } catch (error) {
       console.error('Initialization error:', error); showDebug('Error: ' +
-      error.message); showError('Failed to initialize: ' + error.message); } }
-      async function loadCommissionData() { try { showDebug('Fetching commission
-      data...'); const response = await fetch('/api/calculate-commission', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body:
-      JSON.stringify({ dealId, selectedUserId }) }); showDebug('Response status:
-      ' + response.status); if (!response.ok) { const errorText = await
-      response.text(); showDebug('Error response: ' + errorText); throw new
-      Error('Failed to load commission data: ' + response.status); } const data
-      = await response.json(); showDebug('Data received: ' +
-      JSON.stringify(data)); commissionConfig = data.commissionConfig || [];
-      displaySummary(data); renderCommissionRows();
+      error.message); showDebug('Stack: ' + error.stack); showError('Failed to
+      initialize: ' + error.message); } } async function loadCommissionData() {
+      try { showDebug('Fetching commission data...'); const response = await
+      fetch('/api/calculate-commission', { method: 'POST', headers: {
+      'Content-Type': 'application/json' }, body: JSON.stringify({ dealId,
+      selectedUserId }) }); showDebug('Response status: ' + response.status); if
+      (!response.ok) { const errorText = await response.text(); showDebug('Error
+      response: ' + errorText); throw new Error('Failed to load commission data:
+      ' + response.status); } const data = await response.json();
+      showDebug('Data received: ' + JSON.stringify(data)); commissionConfig =
+      data.commissionConfig || []; displaySummary(data); renderCommissionRows();
       displayResults(data.calculations || []);
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = 'block'; } catch

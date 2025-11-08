@@ -37,6 +37,35 @@ passport.use(
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "hbs");
 
+// Add headers to allow iframe embedding and CORS
+app.use((req, res, next) => {
+  // Allow Pipedrive to embed this app in an iframe
+  res.setHeader("X-Frame-Options", "ALLOWALL");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+
+  // Allow CORS for Pipedrive domains
+  const origin = req.headers.origin;
+  if (origin && origin.includes("pipedrive.com")) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+  }
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 app.use(passport.initialize());
@@ -75,14 +104,22 @@ app.get("/", async (req, res) => {
   }
 });
 app.get("/deals/:id", async (req, res) => {
+  // Set headers for iframe embedding
+  res.setHeader("X-Frame-Options", "ALLOWALL");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+
   res.render("commission-panel", {
     layout: false,
     dealId: req.params.id,
   });
 });
 
-// Extension route for deal panel
+// Extension route for deal panel (used by Pipedrive)
 app.get("/extension/deal", async (req, res) => {
+  // Set headers for iframe embedding
+  res.setHeader("X-Frame-Options", "ALLOWALL");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+
   res.render("commission-panel", {
     layout: false,
   });
