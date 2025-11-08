@@ -75,18 +75,10 @@ app.get("/", async (req, res) => {
   }
 });
 app.get("/deals/:id", async (req, res) => {
-  const randomBoolean = Math.random() >= 0.5;
-  const outcome = randomBoolean === true ? "won" : "lost";
-
-  try {
-    await api.updateDeal(req.params.id, outcome, req.user[0].access_token);
-
-    res.render("outcome", { outcome });
-  } catch (error) {
-    console.log(error);
-
-    return res.send("Failed to update the deal");
-  }
+  res.render("commission-panel", {
+    layout: false,
+    dealId: req.params.id,
+  });
 });
 
 // Extension route for deal panel
