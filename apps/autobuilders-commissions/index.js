@@ -66,6 +66,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Block access to server files through static middleware
+app.use((req, res, next) => {
+  // Prevent serving any .js files from the root directory (like index.js, config.js, api.js)
+  if (req.path.match(/^\/(index|config|api)\.js$/)) {
+    return res.status(404).send("Not found");
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 app.use(passport.initialize());
