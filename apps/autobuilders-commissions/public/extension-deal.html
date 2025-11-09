@@ -103,6 +103,53 @@
 
         function getDealIdFromQuery() {
           const params = new URLSearchParams(window.location.search);
+
+          function pickFirstSelectedId() {
+            const rawValues = [];
+
+            if (params.has("selectedIds")) {
+              rawValues.push(params.get("selectedIds"));
+            }
+
+            if (params.has("selected_ids")) {
+              rawValues.push(params.get("selected_ids"));
+            }
+
+            params.getAll("selectedIds").forEach((value) => {
+              if (!rawValues.includes(value)) {
+                rawValues.push(value);
+              }
+            });
+
+            params.getAll("selected_ids").forEach((value) => {
+              if (!rawValues.includes(value)) {
+                rawValues.push(value);
+              }
+            });
+
+            for (const candidate of rawValues) {
+              if (!candidate) {
+                continue;
+              }
+
+              const parts = String(candidate)
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean);
+
+              if (parts.length) {
+                return parts[0];
+              }
+            }
+
+            return null;
+          }
+
+          const selectedId = pickFirstSelectedId();
+          if (selectedId) {
+            return selectedId;
+          }
+
           return (
             params.get("dealId") ||
             params.get("deal_id") ||
