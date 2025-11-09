@@ -44,6 +44,12 @@
         font-weight: 600;
       }
 
+      .deal-name {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
       .source-hint {
         margin-top: 6px;
         font-size: 13px;
@@ -100,9 +106,10 @@
         const COMMISSION_FIELD_KEY = "1a514f40d36407ecd675c76cc539481989400ac6";
         const COMMISSION_FIELD_NAME = "commission_config_json";
         const root = document.getElementById("root");
+        const queryParams = new URLSearchParams(window.location.search);
 
         function getDealIdFromQuery() {
-          const params = new URLSearchParams(window.location.search);
+          const params = queryParams;
 
           function pickFirstSelectedId() {
             const rawValues = [];
@@ -157,6 +164,143 @@
             params.get("id") ||
             null
           );
+        }
+
+        function normalizeName(value) {
+          if (value === null || value === undefined) {
+            return null;
+          }
+
+          const trimmed = String(value).trim();
+          return trimmed.length ? trimmed : null;
+        }
+
+        function getDealNameFromQuery() {
+          const params = queryParams;
+          const keys = [
+            "dealTitle",
+            "deal_title",
+            "dealName",
+            "deal_name",
+            "title",
+            "name",
+          ];
+
+          for (const key of keys) {
+            if (!params.has(key)) {
+              continue;
+            }
+
+            const candidate = normalizeName(params.get(key));
+            if (candidate) {
+              return candidate;
+            }
+          }
+
+          return null;
+        }
+
+        function extractDealName(context) {
+          if (!context || typeof context !== "object") {
+            return null;
+          }
+
+          const contextsToCheck = [context];
+
+          if (context.context && typeof context.context === "object") {
+            contextsToCheck.push(context.context);
+          }
+
+          if (context.data && typeof context.data === "object") {
+            contextsToCheck.push(context.data);
+          }
+
+          const nameCandidates = [];
+
+          function pushName(value) {
+            const candidate = normalizeName(value);
+            if (candidate && !nameCandidates.includes(candidate)) {
+              nameCandidates.push(candidate);
+            }
+          }
+
+          function collect(candidateContext) {
+            if (!candidateContext || typeof candidateContext !== "object") {
+              return;
+            }
+
+            pushName(candidateContext.dealTitle);
+            pushName(candidateContext.deal_name);
+            pushName(candidateContext.dealName);
+            pushName(candidateContext.title);
+            pushName(candidateContext.name);
+
+            if (
+              candidateContext.deal &&
+              typeof candidateContext.deal === "object"
+            ) {
+              pushName(candidateContext.deal.title);
+              pushName(candidateContext.deal.name);
+            }
+
+            if (
+              candidateContext.currentDeal &&
+              typeof candidateContext.currentDeal === "object"
+            ) {
+              pushName(candidateContext.currentDeal.title);
+              pushName(candidateContext.currentDeal.name);
+            }
+
+            if (
+              candidateContext.entity &&
+              typeof candidateContext.entity === "object"
+            ) {
+              pushName(candidateContext.entity.title);
+              pushName(candidateContext.entity.name);
+            }
+
+            if (
+              candidateContext.object &&
+              typeof candidateContext.object === "object"
+            ) {
+              pushName(candidateContext.object.title);
+              pushName(candidateContext.object.name);
+            }
+
+            if (
+              candidateContext.item &&
+              typeof candidateContext.item === "object"
+            ) {
+              pushName(candidateContext.item.title);
+              pushName(candidateContext.item.name);
+            }
+
+            if (Array.isArray(candidateContext.selectedItems)) {
+              candidateContext.selectedItems.forEach((item) => {
+                if (item && typeof item === "object") {
+                  pushName(item.title);
+                  pushName(item.name);
+                }
+              });
+            }
+
+            if (Array.isArray(candidateContext.items)) {
+              candidateContext.items.forEach((item) => {
+                if (item && typeof item === "object") {
+                  pushName(item.title);
+                  pushName(item.name);
+                }
+              });
+            }
+          }
+
+          contextsToCheck.forEach(collect);
+
+          if (nameCandidates.length) {
+            return nameCandidates[0];
+          }
+
+          return null;
         }
 
         function coerceId(value) {
@@ -443,10 +587,14 @@
             : "Field not present in SDK context.";
           const fieldText = escapeHtml(fieldPresentation.text);
           const fieldHintText = escapeHtml(fieldHint);
+          const dealNameLabel = result.dealName
+            ? escapeHtml(result.dealName)
+            : "Unknown deal";
 
           root.innerHTML = `
             <h1>Commissions panel ready.</h1>
             <p class="deal-id">Deal ID: ${escapeHtml(result.dealId)}</p>
+            <p class="deal-name">Deal name: ${dealNameLabel}</p>
             <p class="source-hint">Detected via ${sourceLabel}.</p>
             <div class="field-block">
               <span class="field-label">${COMMISSION_FIELD_NAME}</span>
@@ -466,6 +614,7 @@
 
         async function initialize() {
           const fallbackId = coerceId(getDealIdFromQuery());
+          const fallbackName = getDealNameFromQuery();
 
           if (!window.AppExtensionsSDK) {
             if (fallbackId) {
@@ -474,6 +623,7 @@
                 source: "query string",
                 fieldValue: null,
                 fieldSource: null,
+                dealName: fallbackName,
               });
               return;
             }
@@ -511,6 +661,8 @@
             context,
             COMMISSION_FIELD_KEY
           );
+          const dealNameFromContext = extractDealName(context);
+          const dealName = dealNameFromContext || fallbackName || null;
 
           if (dealId) {
             showResult({
@@ -518,6 +670,7 @@
               source: dealIdFromContext ? "Pipedrive context" : "query string",
               fieldValue,
               fieldSource,
+              dealName,
             });
             return;
           }
