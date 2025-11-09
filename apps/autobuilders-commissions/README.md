@@ -1,37 +1,54 @@
-# Autobuilders Commissions – Clean Slate
+# Autobuilders Commissions – Pipedrive Private App
 
-This repository has been reset to the smallest possible Express app that satisfies the Pipedrive Custom UI requirement. The only thing it does right now is serve a deal panel page that handshakes with the App Extensions SDK.
+Internal Pipedrive app that shows a **“Commissions” panel on each Deal**.
 
-Use this as a fresh starting point to rebuild the commissions experience.
+The app is a Node/Express server, hosted on Render, used only by our team.  
+It authenticates with Pipedrive (OAuth) and renders an iframe panel inside the Deal view.
 
-## What is running?
+> This README is written so another dev/AI can understand the goal and extend the project.
 
-- `GET /` → plain text health response so you can confirm the Render instance is alive.
-- `GET /extension/deal` → lightweight HTML file that loads the Pipedrive App Extensions SDK and prints the current deal ID once the handshake completes.
-- Static assets are served from `public/` (only `extension-deal.html` today).
+---
 
-## Local development
+## 1. What the app should do
 
-1. `npm install`
-2. `npm run dev`
-3. Visit `http://localhost:3000/extension/deal`
+For each **Deal** in Pipedrive, we want a panel that:
 
-When you hit the URL directly you will see a loading screen forever because Pipedrive is not present. Inside the CRM it will resolve to "Commissions panel ready" plus the deal ID.
+- Shows a **dynamic table** of commission lines.
+- Each line has:
+  - `Label` (e.g. Alice, Bob, Malt, Extra dev)
+  - `Percent` (of total or of deposit)
+  - `Fixed amount`
+  - `Applies to` → `total` OR `deposit`
+- Uses:
+  - **Incoming revenue** (deal value)
+  - **Deposit percent**
+- Calculates for each line:
+  - Amount on deposit
+  - Amount on remaining
+  - Total for that line
+- Shows a warning if **sum of all lines ≠ incoming revenue**.
 
-## Deploying to Render
+Data for a deal is persisted in Pipedrive (custom fields) or optionally in our own DB.
 
-- Build command: `npm install`
-- Start command: `npm start`
-- No environment variables are required yet.
+---
 
-## Wiring up the Pipedrive panel
+## 2. Tech stack
 
-In Developer Hub → App extensions → Deal detail view:
+- Node.js + Express
+- Pipedrive OAuth 2.0
+- Pipedrive App Extensions SDK (for the Deal panel iframe)
+- Hosted on [Render](https://render.com)
 
-1. Point the panel URL to `https://<your-service>.onrender.com/extension/deal`.
-2. Save.
-3. Refresh a deal in Pipedrive.
+---
 
-If everything is set correctly the iframe will stop showing "Error loading iframe" and the console noise about cross-domain access becomes harmless warnings.
+## 3. Environment variables
 
-From here you can incrementally add API endpoints, OAuth, and the full commission editor without carrying over the previous large codebase.
+The server reads config from `process.env` via `config.js`:
+
+```js
+module.exports = {
+  clientID: process.env.CLIENT_ID || "",
+  clientSecret: process.env.CLIENT_SECRET || "",
+  callbackURL: process.env.CALLBACK_URL || "",
+};
+```

@@ -1,1 +1,0 @@
-> NB! Delete the `sqlite` database that is created in the `data` folder if you are committing to a public repo as it contains information about users.
