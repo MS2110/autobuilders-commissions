@@ -198,15 +198,14 @@
       const height = document.documentElement.scrollHeight;
       if (state.sdk && typeof state.sdk.setHeight === "function") {
         state.sdk.setHeight(height);
-      } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage(
-          {
-            type: "pipedrive:custom-panel-height",
-            height,
-          },
-          "*"
-        );
+        return;
       }
+
+      // When the SDK is unavailable we are likely running the page directly in a
+      // browser tab (outside of Pipedrive). In that case we simply adjust the
+      // body min-height locally instead of trying to poke the parent frame,
+      // which can trigger cross-origin errors when embedded.
+      document.body.style.minHeight = `${height}px`;
     });
   }
 
