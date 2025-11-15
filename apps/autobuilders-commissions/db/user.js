@@ -16,9 +16,15 @@ async function createTable() {
 }
 
 async function getById(id) {
-  const user = await knex.from("users").select().where("id", id);
+  const user = await knex.from("users").where("id", id).first();
 
-  return user;
+  return user || null;
+}
+
+async function getFirst() {
+  const user = await knex.from("users").orderBy("id", "asc").first();
+
+  return user || null;
 }
 
 async function add(username, access_token, refresh_token) {
@@ -29,8 +35,24 @@ async function add(username, access_token, refresh_token) {
   });
 }
 
+async function upsert(username, access_token, refresh_token) {
+  const existing = await getFirst();
+
+  if (existing) {
+    await knex("users")
+      .where("id", existing.id)
+      .update({ username, access_token, refresh_token });
+    return { ...existing, username, access_token, refresh_token };
+  }
+
+  await add(username, access_token, refresh_token);
+  return getFirst();
+}
+
 module.exports = {
   createTable,
   add,
   getById,
+  getFirst,
+  upsert,
 };
