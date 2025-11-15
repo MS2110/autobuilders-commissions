@@ -597,10 +597,6 @@
 
     const metrics = [
       {
-        label: "Deal value",
-        value: formatCurrency(calculations.dealValue),
-      },
-      {
         label:
           depositPercent && !Number.isNaN(depositPercent)
             ? `Deposit (${depositPercent}%)`
@@ -610,11 +606,6 @@
       {
         label: "Remaining",
         value: formatCurrency(calculations.remainingAmount),
-      },
-      {
-        label: "Total commissions",
-        value: formatCurrency(calculations.totalCommissions),
-        note: calculations.isValid ? "Matches deal value" : "Needs review",
       },
     ];
 
@@ -637,40 +628,14 @@
       .join("");
 
     const commissionRows = calculations.commissions
-      .map((commission) => {
-        const appliesBadgeText =
-          commission.appliesTo === "deposit"
-            ? commission.substractOtherDepostit
-              ? "Deposit · net"
-              : "Deposit · gross"
-            : "Full deal";
-
-        const badgeTexts = [
-          appliesBadgeText,
-          commission.percent !== undefined && commission.percent !== null
-            ? `${commission.percent}% rate`
-            : null,
-          commission.fixed > 0
-            ? `+ ${formatCurrency(commission.fixed)} fixed`
-            : null,
-        ].filter(Boolean);
-
-        const badges = badgeTexts
-          .map(
-            (text) => `
-                  <span class="commission-badge">${escapeHtml(text)}</span>
-                `
-          )
-          .join("");
-
-        return `
+      .map(
+        (commission) => `
               <div class="commission-row">
                 <div class="commission-row-main">
                   <div>
                     <p class="commission-name">${escapeHtml(
                       commission.name
                     )}</p>
-                    <div class="commission-meta">${badges}</div>
                   </div>
                   <div class="commission-amount">${formatCurrency(
                     commission.total
@@ -708,8 +673,8 @@
                   </div>
                 </div>
               </div>
-            `;
-      })
+    `
+      )
       .join("");
 
     const commissionsHTML = commissionRows
@@ -717,9 +682,10 @@
       : '<div class="empty-state">No commission configuration found</div>';
 
     const verificationClass = calculations.isValid ? "" : " error";
-    const verificationMessage = calculations.isValid
-      ? "Commissions match the deal value"
-      : "Review commission math";
+    const validationSummary = calculations.isValid
+      ? "Matches deal value"
+      : "Needs review";
+    const totalCommissionsText = formatCurrency(calculations.totalCommissions);
 
     root.innerHTML = `
           <div class="panel-stack">
@@ -738,8 +704,8 @@
             </section>
 
             <div class="validation${verificationClass}">
-              <span class="validation-label">Validation</span>
-              <span class="validation-value">${verificationMessage}</span>
+              <span class="validation-label">Total commissions</span>
+              <span class="validation-value">${totalCommissionsText} · ${validationSummary}</span>
             </div>
           </div>
         `;
