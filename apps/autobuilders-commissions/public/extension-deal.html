@@ -93,6 +93,40 @@
         font-style: italic;
         opacity: 0.7;
       }
+
+      .data-grid {
+        margin-top: 20px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .data-item {
+        background: rgba(15, 23, 42, 0.55);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: left;
+      }
+
+      .data-item-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(226, 232, 240, 0.8);
+        margin-bottom: 6px;
+      }
+
+      .data-item-value {
+        font-size: 15px;
+        color: #e2e8f0;
+        font-weight: 500;
+      }
+
+      .data-item-value.config {
+        font-size: 12px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.4;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@pipedrive/app-extensions-sdk@0/dist/index.umd.js"></script>
   </head>
@@ -104,6 +138,8 @@
     <script>
       (function () {
         const COMMISSION_FIELD_KEY = "1a514f40d36407ecd675c76cc539481989400ac6";
+        const DEPOSIT_PERCENT_FIELD_KEY =
+          "315e79ee4cf37b98a64b73194f3f32da234278ba";
         const COMMISSION_FIELD_NAME = "commission_config_json";
         const root = document.getElementById("root");
         const queryParams = new URLSearchParams(window.location.search);
@@ -580,26 +616,61 @@
           const sourceLabel = result.source
             ? escapeHtml(result.source)
             : "unknown";
-          const fieldPresentation = formatFieldValue(result.fieldValue);
-          const fieldClass = fieldPresentation.isPlaceholder ? " empty" : "";
-          const fieldHint = result.fieldSource
-            ? `Field located via ${result.fieldSource}.`
-            : "Field not present in SDK context.";
-          const fieldText = escapeHtml(fieldPresentation.text);
-          const fieldHintText = escapeHtml(fieldHint);
+
           const dealNameLabel = result.dealName
             ? escapeHtml(result.dealName)
             : "Unknown deal";
+
+          // Parse commission config
+          let commissionConfigDisplay = "Not set";
+          if (result.commissionConfig) {
+            try {
+              const parsed =
+                typeof result.commissionConfig === "string"
+                  ? JSON.parse(result.commissionConfig)
+                  : result.commissionConfig;
+              commissionConfigDisplay = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+              commissionConfigDisplay = String(result.commissionConfig);
+            }
+          }
+
+          // Format deposit percent
+          const depositPercent =
+            result.depositPercent !== null &&
+            result.depositPercent !== undefined
+              ? `${result.depositPercent}%`
+              : "Not set";
+
+          // Format deal value
+          const dealValue =
+            result.dealValue !== null && result.dealValue !== undefined
+              ? `€${result.dealValue.toLocaleString()}`
+              : "Not set";
 
           root.innerHTML = `
             <h1>Commissions panel ready.</h1>
             <p class="deal-id">Deal ID: ${escapeHtml(result.dealId)}</p>
             <p class="deal-name">Deal name: ${dealNameLabel}</p>
             <p class="source-hint">Detected via ${sourceLabel}.</p>
-            <div class="field-block">
-              <span class="field-label">${COMMISSION_FIELD_NAME}</span>
-              <pre class="field-value${fieldClass}">${fieldText}</pre>
-              <p class="source-hint">${fieldHintText}</p>
+            
+            <div class="data-grid">
+              <div class="data-item">
+                <div class="data-item-label">Deal Value</div>
+                <div class="data-item-value">${escapeHtml(dealValue)}</div>
+              </div>
+              
+              <div class="data-item">
+                <div class="data-item-label">Deposit Percent</div>
+                <div class="data-item-value">${escapeHtml(depositPercent)}</div>
+              </div>
+              
+              <div class="data-item">
+                <div class="data-item-label">Commission Configuration</div>
+                <div class="data-item-value config">${escapeHtml(
+                  commissionConfigDisplay
+                )}</div>
+              </div>
             </div>
           `;
         }
@@ -680,12 +751,20 @@
               fallbackDealName ||
               null;
 
+            // Extract the three key fields from payload.deal
+            const commissionConfig =
+              payload?.deal?.[COMMISSION_FIELD_KEY] || null;
+            const depositPercent =
+              payload?.deal?.[DEPOSIT_PERCENT_FIELD_KEY] || null;
+            const dealValue = payload?.deal?.value || null;
+
             showResult({
               dealId,
               source: detectionSource,
-              fieldValue: payload.summary || fallbackField,
-              fieldSource: "Fetched via Autobuilders API",
               dealName,
+              commissionConfig,
+              depositPercent,
+              dealValue,
             });
           } catch (error) {
             console.error("Failed to fetch commission summary", error);
