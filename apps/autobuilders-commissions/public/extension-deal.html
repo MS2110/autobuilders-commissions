@@ -762,21 +762,25 @@
           const originalDepositAmount = (dealValue * depositPercent) / 100;
           const originalRemainingAmount = dealValue - originalDepositAmount;
 
-          // First pass: calculate fixed amounts and deposit-only commissions
+          // First pass: calculate fixed amounts and deposit-only commissions (without substractOtherDepostit)
           let totalFixedAmounts = 0;
           let totalDepositOnlyCommissions = 0;
 
           commissionConfig.forEach((config) => {
             totalFixedAmounts += config.fixed || 0;
 
-            if (config.appliesTo === "deposit") {
+            // Only count pure deposit commissions (without substractOtherDepostit flag)
+            if (
+              config.appliesTo === "deposit" &&
+              !config.substractOtherDepostit
+            ) {
               const depositCommission =
                 (originalDepositAmount * config.percent) / 100;
               totalDepositOnlyCommissions += depositCommission;
             }
           });
 
-          // Calculate the adjusted base for "total" commissions
+          // Calculate the adjusted base for "total" and "deposit with substractOtherDepostit" commissions
           // Deal value minus fixed amounts minus deposit-only commissions
           const adjustedBaseForTotal =
             dealValue - totalFixedAmounts - totalDepositOnlyCommissions;
@@ -793,10 +797,18 @@
             let onRemaining = 0;
 
             if (config.appliesTo === "deposit") {
-              // Deposit-only: calculate on original deposit amount
-              percentAmount = (originalDepositAmount * config.percent) / 100;
-              onDeposit = percentAmount;
-              onRemaining = 0;
+              if (config.substractOtherDepostit) {
+                // Deposit with substractOtherDepostit: calculate on adjusted deposit (excluding other deposit fees)
+                percentAmount =
+                  (adjustedDepositForTotal * config.percent) / 100;
+                onDeposit = percentAmount;
+                onRemaining = 0;
+              } else {
+                // Pure deposit-only: calculate on original deposit amount
+                percentAmount = (originalDepositAmount * config.percent) / 100;
+                onDeposit = percentAmount;
+                onRemaining = 0;
+              }
             } else {
               // Total: calculate on adjusted base (excluding fixed and deposit-only)
               percentAmount = (adjustedBaseForTotal * config.percent) / 100;
@@ -811,6 +823,7 @@
               percent: config.percent,
               fixed: fixedAmount,
               appliesTo: config.appliesTo || "total",
+              substractOtherDepostit: config.substractOtherDepostit || false,
               depositAmount: onDeposit,
               remainingAmount: onRemaining,
               total: total,
@@ -878,10 +891,18 @@
           // Generate commission items HTML
           const commissionsHTML = calculations.commissions
             .map((commission) => {
-              const badge =
-                commission.appliesTo === "deposit"
-                  ? '<span class="commission-badge deposit">Deposit Only</span>'
-                  : '<span class="commission-badge">Total</span>';
+              let badge = "";
+              if (commission.appliesTo === "deposit") {
+                if (commission.substractOtherDepostit) {
+                  badge =
+                    '<span class="commission-badge deposit">Deposit (Net)</span>';
+                } else {
+                  badge =
+                    '<span class="commission-badge deposit">Deposit Only</span>';
+                }
+              } else {
+                badge = '<span class="commission-badge">Total</span>';
+              }
 
               const fixedDisplay =
                 commission.fixed > 0
